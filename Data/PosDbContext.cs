@@ -23,5 +23,6 @@ namespace AlegriaPosApi.Data
         public DbSet<ProductModifier> ProductModifiers => Set<ProductModifier>();
         public DbSet<ProductModifierOption> ProductModifierOptions => Set<ProductModifierOption>();
         public DbSet<SalesInvoice> SalesInvoices => Set<SalesInvoice>();
+        public DbSet<Material> Materials => Set<Material>();
     }
 }
