@@ -1,4 +1,5 @@
 ﻿using AlegriaPosApi.Data;
+using AlegriaPosApi.DTOs.ProductMaterials;
 using AlegriaPosApi.DTOs.ProductModifiers;
 using AlegriaPosApi.DTOs.Products;
 using AlegriaPosApi.Models;
@@ -146,6 +147,73 @@ namespace AlegriaPosApi.Controllers
                 return NotFound();
             _context.Products.Remove(product);
             await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [HttpGet("{id}/materials")]
+        public async Task<IActionResult> GetProductMaterial(int id) 
+        {             
+            var productMaterials = await _context.ProductMaterials
+                .Where(pm => pm.ProductId == id)
+                .Include(pm => pm.Material)
+                .Select(pm => new ProductMaterialViewDto
+                {
+                    MaterialId = pm.MaterialId,
+                    MaterialName = pm.Material.Name,
+                    QuantityUsed = pm.QuantityUsed
+                })
+                .ToListAsync();
+
+            return Ok(productMaterials);
+        }
+
+        [HttpPost("{id}/materials")]
+        public async Task<IActionResult> SetProductMaterials(int id, List<ProductMaterialDto> dto)
+        {
+            var product = await _context.Products
+                .Include(p => p.ProductMaterials)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (product == null)
+                return NotFound();
+
+            // Remove old recipe
+            product.ProductMaterials.Clear();
+
+            foreach (var item in dto)
+            {
+                // Optional: validate material exists
+                var materialExists = await _context.Materials
+                    .AnyAsync(m => m.Id == item.MaterialId);
+
+                if (!materialExists)
+                    return BadRequest($"Material {item.MaterialId} not found");
+
+                product.ProductMaterials.Add(new ProductMaterial
+                {
+                    MaterialId = item.MaterialId,
+                    QuantityUsed = item.QuantityUsed
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpDelete("{productId}/materials/{materialId}")]
+        public async Task<IActionResult> RemoveMaterialFromProduct(int productId, int materialId)
+        {
+            var pm = await _context.ProductMaterials
+                .FirstOrDefaultAsync(x =>
+                    x.ProductId == productId &&
+                    x.MaterialId == materialId);
+
+            if (pm == null)
+                return NotFound();
+
+            _context.ProductMaterials.Remove(pm);
+            await _context.SaveChangesAsync();
+
             return NoContent();
         }
     }

@@ -29,7 +29,8 @@ namespace AlegriaPosApi.Controllers
                      Name = m.Name,
                      Unit = m.Unit,
                      CurrentStock = m.CurrentStock,
-                     LowStockThreshold = m.LowStockThreshold
+                     LowStockThreshold = m.LowStockThreshold,
+                     CostPerUnit = m.CostPerUnit
                  })
                  .ToListAsync();
 
@@ -50,7 +51,8 @@ namespace AlegriaPosApi.Controllers
                 Name = material.Name,
                 Unit = material.Unit,
                 CurrentStock = material.CurrentStock,
-                LowStockThreshold = material.LowStockThreshold
+                LowStockThreshold = material.LowStockThreshold,
+                CostPerUnit = material.CostPerUnit
             });
         }
 
@@ -61,8 +63,9 @@ namespace AlegriaPosApi.Controllers
             {
                 Name = dto.Name,
                 Unit = dto.Unit,
-                CurrentStock = dto.InitialStock,
+                CurrentStock = dto.CurrentStock,
                 LowStockThreshold = dto.LowStockThreshold,
+                CostPerUnit = dto.CostPerUnit,
             };
 
             _context.Materials.Add(material);
@@ -81,7 +84,9 @@ namespace AlegriaPosApi.Controllers
 
             material.Name = dto.Name;
             material.Unit = dto.Unit;
+            material.CurrentStock = dto.CurrentStock;
             material.LowStockThreshold = dto.LowStockThreshold;
+            material.CostPerUnit = dto.CostPerUnit;
 
             await _context.SaveChangesAsync();
 
@@ -99,12 +104,20 @@ namespace AlegriaPosApi.Controllers
                 return NotFound();
             }
 
-            material.CurrentStock += dto.Quantity;
-
-            if(material.CurrentStock < 0)
+            if(material.CurrentStock + dto.QuantityChange < 0)
             {
-                return BadRequest("Stock cannot be negative.");
+                return BadRequest("Insufficient stock");
             }
+
+            material.CurrentStock += dto.QuantityChange;
+
+            _context.MaterialStockLogs.Add(new MaterialStockLog
+            {
+                MaterialId = id,
+                QuantityChange = dto.QuantityChange,
+                Reason = dto.Reason,
+                CreatedAt = DateTime.UtcNow
+            });
 
             await _context.SaveChangesAsync();
 
@@ -130,6 +143,33 @@ namespace AlegriaPosApi.Controllers
                 }).ToListAsync();
 
             return Ok(materials);
+        }
+
+        // End of Adjusting of Stocks
+
+        // View Material Stock Logs History
+
+        [HttpGet("{id}/stock-history")]
+        public async Task<IActionResult> GetStockHistory(int id)
+        {
+                       var material = await _context.Materials.FindAsync(id);
+            if (material == null)
+            {
+                return NotFound();
+            }
+            var stockLogs = await _context.MaterialStockLogs
+                .Where(log => log.MaterialId == id)
+                .OrderByDescending(log => log.CreatedAt)
+                .Select(log => new
+                {
+                    log.QuantityChange,
+                    log.Reason,
+                    log.ReferenceType,
+                    log.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(stockLogs);
         }
 
 

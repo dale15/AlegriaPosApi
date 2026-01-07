@@ -3,6 +3,7 @@ using System;
 using AlegriaPosApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AlegriaPosApi.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260105152254_AddReferenceColumnInMaterialStockLog")]
+    partial class AddReferenceColumnInMaterialStockLog
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -136,34 +139,6 @@ namespace AlegriaPosApi.Migrations
                     b.HasIndex("CategoryId");
 
                     b.ToTable("products");
-                });
-
-            modelBuilder.Entity("AlegriaPosApi.Models.ProductMaterial", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("MaterialId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("QuantityUsed")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MaterialId");
-
-                    b.HasIndex("ProductId", "MaterialId")
-                        .IsUnique();
-
-                    b.ToTable("productmaterials");
                 });
 
             modelBuilder.Entity("AlegriaPosApi.Models.ProductModifier", b =>
@@ -323,25 +298,6 @@ namespace AlegriaPosApi.Migrations
                     b.Navigation("Category");
                 });
 
-            modelBuilder.Entity("AlegriaPosApi.Models.ProductMaterial", b =>
-                {
-                    b.HasOne("AlegriaPosApi.Models.Material", "Material")
-                        .WithMany("ProductMaterials")
-                        .HasForeignKey("MaterialId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("AlegriaPosApi.Models.Product", "Product")
-                        .WithMany("ProductMaterials")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Material");
-
-                    b.Navigation("Product");
-                });
-
             modelBuilder.Entity("AlegriaPosApi.Models.ProductModifier", b =>
                 {
                     b.HasOne("AlegriaPosApi.Models.Product", "Product")
@@ -399,16 +355,9 @@ namespace AlegriaPosApi.Migrations
                     b.Navigation("Products");
                 });
 
-            modelBuilder.Entity("AlegriaPosApi.Models.Material", b =>
-                {
-                    b.Navigation("ProductMaterials");
-                });
-
             modelBuilder.Entity("AlegriaPosApi.Models.Product", b =>
                 {
                     b.Navigation("Modifiers");
-
-                    b.Navigation("ProductMaterials");
                 });
 
             modelBuilder.Entity("AlegriaPosApi.Models.ProductModifier", b =>

@@ -16,6 +16,14 @@ namespace AlegriaPosApi.Data
             {
                 entity.SetTableName(entity.GetTableName()!.ToLower());
             }
+
+            modelBuilder.Entity<ProductMaterial>()
+                .HasIndex(pm => new { pm.ProductId, pm.MaterialId })
+                .IsUnique();
+
+            modelBuilder.Entity<ProductMaterial>()
+                .Property(pm => pm.QuantityUsed)
+                .HasPrecision(18, 4);
         }
 
         public DbSet<Category> Categories => Set<Category>();
@@ -24,5 +32,7 @@ namespace AlegriaPosApi.Data
         public DbSet<ProductModifierOption> ProductModifierOptions => Set<ProductModifierOption>();
         public DbSet<SalesInvoice> SalesInvoices => Set<SalesInvoice>();
         public DbSet<Material> Materials => Set<Material>();
+        public DbSet<MaterialStockLog> MaterialStockLogs => Set<MaterialStockLog>();
+        public DbSet<ProductMaterial> ProductMaterials => Set<ProductMaterial>();
     }
 }

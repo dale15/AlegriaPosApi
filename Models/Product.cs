@@ -13,5 +13,8 @@
 
         public ICollection<ProductModifier> Modifiers { get; set; }
         = new List<ProductModifier>();
+
+        public ICollection<ProductMaterial> ProductMaterials { get; set; }
+        = new List<ProductMaterial>();
     }
 }

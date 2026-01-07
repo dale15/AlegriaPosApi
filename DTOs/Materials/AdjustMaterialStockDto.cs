@@ -2,7 +2,7 @@
 {
     public class AdjustMaterialStockDto
     {
-        public decimal Quantity { get; set; } // positive or negative
+        public int QuantityChange { get; set; } // positive or negative
         public string Reason { get; set; } = string.Empty;
     }
 }

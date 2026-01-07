@@ -13,6 +13,12 @@
 
         public decimal LowStockThreshold { get; set; }
 
+        // 👇 IMPORTANT
+        public decimal CostPerUnit { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public ICollection<ProductMaterial> ProductMaterials { get; set; }
+        = new List<ProductMaterial>();
     }
 }
