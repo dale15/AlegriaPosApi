@@ -79,7 +79,9 @@ namespace AlegriaPosApi.Controllers
             _context.SalesInvoices.Add(invoice);
             await _context.SaveChangesAsync();
 
-            return Ok(new { invoice.Id, invoice.InvoiceNumber });
+
+
+            return Ok(new { invoice.Id, invoice.InvoiceNumber, invoice.InvoiceDate });
         }
 
         [HttpGet("{id}")]
