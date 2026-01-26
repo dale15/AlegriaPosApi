@@ -34,5 +34,6 @@ namespace AlegriaPosApi.Data
         public DbSet<Material> Materials => Set<Material>();
         public DbSet<MaterialStockLog> MaterialStockLogs => Set<MaterialStockLog>();
         public DbSet<ProductMaterial> ProductMaterials => Set<ProductMaterial>();
+        public DbSet<Sale> Sale => Set<Sale>();
     }
 }

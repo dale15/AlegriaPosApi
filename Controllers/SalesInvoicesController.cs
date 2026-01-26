@@ -84,6 +84,24 @@ namespace AlegriaPosApi.Controllers
             return Ok(new { invoice.Id, invoice.InvoiceNumber, invoice.InvoiceDate });
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetAllSalesInvoice()
+        {
+            var invoices = await _context.SalesInvoices
+                .Select(i => new SalesInvoiceDto
+                {
+                    Id = i.Id,
+                    InvoiceNumber = i.InvoiceNumber,
+                    InvoiceDate = i.InvoiceDate,
+                    SubTotal = i.SubTotal,
+                    Tax = i.Tax ?? 0m,
+                    Discount = i.Discount,
+                    TotalAmount = i.TotalAmount,
+                })
+                .ToListAsync();
+            return Ok(invoices);
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetSalesInvoiceById(int id)
         {
