@@ -32,7 +32,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableApiDocs"))
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
@@ -45,7 +45,5 @@ app.UseCors("AllowAll");
 app.UseAuthorization();
 
 app.MapControllers();
-
-app.MapGet("/ping", () => Results.Ok("pong"));
 
 app.Run();
