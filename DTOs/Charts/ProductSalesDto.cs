@@ -4,6 +4,12 @@
     {
         public int ProductId { get; set; }
         public string ProductName { get; set; } = string.Empty;
+
+        // Summary
+        public int TotalQuantitySold { get; set; }
+        public decimal TotalSales { get; set; }
+
+
         public List<ProductSalesByDateDto> Sales { get; set; } = new();
     }
 

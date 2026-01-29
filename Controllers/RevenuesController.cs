@@ -12,10 +12,22 @@ namespace AlegriaPosApi.Controllers
     public class RevenuesController : ControllerBase
     {
         private readonly PosDbContext _context;
+        private static readonly TimeZoneInfo ManilaTz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
 
         public RevenuesController(PosDbContext context)
         {
             _context = context;
+        }
+
+        private static (DateTime startUtc, DateTime endUtc) GetPhDayUtcRange(DateTime phDate)
+        {
+            var startPh = DateTime.SpecifyKind(phDate.Date, DateTimeKind.Unspecified);
+            var endPh = startPh.AddDays(1);
+
+            return (
+                TimeZoneInfo.ConvertTimeToUtc(startPh, ManilaTz),
+                TimeZoneInfo.ConvertTimeToUtc(endPh, ManilaTz)
+            );
         }
 
         [HttpGet]
@@ -57,18 +69,30 @@ namespace AlegriaPosApi.Controllers
             }
             else if (range == "today")
             {
-                data = await query
-                    .GroupBy(x => x.InvoiceDate.Hour)
-                    .Select(g => new RevenuePointDto
-                    {
-                        Date = DateTime.SpecifyKind(
-                            DateTime.UtcNow.Date.AddHours(g.Key),
-                            DateTimeKind.Utc
-                        ),
-                        Revenue = g.Sum(x => x.TotalAmount)
-                    })
-                    .OrderBy(x => x.Date)
-                    .ToListAsync();
+                var startOfToday = DateTime.UtcNow.Date;
+                var startOfTomorrow = startOfToday.AddDays(1);
+
+                query = query.Where(x =>
+                    x.InvoiceDate >= startOfToday &&
+                    x.InvoiceDate < startOfTomorrow
+                );
+
+                var hours = Enumerable.Range(0, 24);
+
+                data = hours
+                    .GroupJoin(
+                        await query.ToListAsync(),
+                        h => h,
+                        x => x.InvoiceDate.Hour,
+                        (hour, invoices) => new RevenuePointDto
+                        {
+                            Date = DateTime.SpecifyKind(
+                                startOfToday.AddHours(hour),
+                                DateTimeKind.Utc
+                            ),
+                            Revenue = invoices.Sum(x => x.TotalAmount)
+                        }
+                    ).ToList();
             }
             else if (range == "year")
             {
@@ -107,6 +131,5 @@ namespace AlegriaPosApi.Controllers
                 RevenuePoints = data
             });
         }
-
     }
 }
