@@ -7,5 +7,7 @@
         public int CategoryId { get; set; }
         public decimal SellingPrice { get; set; }
         public decimal CostPrice { get; set; }
+
+        public IFormFile? Image {  get; set; }
     }
 }

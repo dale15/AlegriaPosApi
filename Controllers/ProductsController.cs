@@ -37,6 +37,7 @@ namespace AlegriaPosApi.Controllers
                     CostPrice = p.CostPrice,
                     CategoryId = p.CategoryId,
                     CategoryName = p.Category.Name,
+                    ImageUrl = p.ImageUrl,
 
                     Modifiers = p.Modifiers.Select(m => new ProductModifierDto
                     {
@@ -95,12 +96,30 @@ namespace AlegriaPosApi.Controllers
         }
 
         [HttpPost("addProducts")]
-        public async Task<IActionResult> CreateProduct(CreateProductDto dto)
+        public async Task<IActionResult> CreateProduct([FromForm] CreateProductDto dto)
         {
             // optional validation
             var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
             if (!categoryExists)
                 return BadRequest("Category does not exist.");
+
+            string? imageUrl = null;
+
+            if (dto.Image != null)
+            {
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/products");
+
+                if (!Directory.Exists(uploadsFolder))
+                    Directory.CreateDirectory(uploadsFolder);
+
+                var fileName = $"{Guid.NewGuid()}{Path.GetExtension(dto.Image.FileName)}";
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                using var stream = new FileStream(filePath, FileMode.Create);
+                await dto.Image.CopyToAsync(stream);
+
+                imageUrl = $"/uploads/products/{fileName}";
+            }
 
             var product = new Product
             {
@@ -108,7 +127,8 @@ namespace AlegriaPosApi.Controllers
                 SKU = dto.SKU,
                 SellingPrice = dto.SellingPrice,
                 CostPrice = dto.CostPrice,
-                CategoryId = dto.CategoryId
+                CategoryId = dto.CategoryId,
+                ImageUrl = imageUrl,
             };
 
             _context.Products.Add(product);

@@ -38,7 +38,7 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableA
     app.MapScalarApiReference();
 }
 
-//app.UseHttpsRedirection();
+app.UseStaticFiles();
 
 app.UseCors("AllowAll");
 
