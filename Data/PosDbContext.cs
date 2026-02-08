@@ -24,6 +24,12 @@ namespace AlegriaPosApi.Data
             modelBuilder.Entity<ProductMaterial>()
                 .Property(pm => pm.QuantityUsed)
                 .HasPrecision(18, 4);
+
+            modelBuilder.Entity<SalesInvoice>()
+                .HasOne(i => i.Discount)
+                .WithMany()
+                .HasForeignKey(i => i.DiscountId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
 
         public DbSet<Category> Categories => Set<Category>();
@@ -35,5 +41,6 @@ namespace AlegriaPosApi.Data
         public DbSet<MaterialStockLog> MaterialStockLogs => Set<MaterialStockLog>();
         public DbSet<ProductMaterial> ProductMaterials => Set<ProductMaterial>();
         public DbSet<Sale> Sale => Set<Sale>();
+        public DbSet<Discount> Discounts => Set<Discount>();
     }
 }

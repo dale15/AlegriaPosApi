@@ -116,13 +116,33 @@ namespace AlegriaPosApi.Controllers
             [FromQuery] DateTime? to = null,
             [FromQuery] string orderBy = "sales") // "sales" | "quantity"
         {
-            var query = _context.Sale.AsQueryable();
+            var query = _context.Sale
+            .Include(s => s.SalesInvoice)
+            .AsQueryable();
 
             if (from.HasValue)
-                query = query.Where(s => s.SalesInvoice.InvoiceDate >= from.Value);
+            {
+                var fromUtc = DateTime.SpecifyKind(
+                    from.Value.Date,
+                    DateTimeKind.Utc
+                );
+
+                query = query.Where(s =>
+                    s.SalesInvoice.InvoiceDate >= fromUtc
+                );
+            }
 
             if (to.HasValue)
-                query = query.Where(s => s.SalesInvoice.InvoiceDate <= to.Value);
+            {
+                var toUtc = DateTime.SpecifyKind(
+                    to.Value.Date.AddDays(1).AddTicks(-1),
+                    DateTimeKind.Utc
+                );
+
+                query = query.Where(s =>
+                    s.SalesInvoice.InvoiceDate <= toUtc
+                );
+            }
 
             var grouped = query
                 .GroupBy(s => new
@@ -143,7 +163,6 @@ namespace AlegriaPosApi.Controllers
                 : grouped.OrderByDescending(x => x.totalSales);
 
             var result = await grouped
-                .Take(limit)
                 .ToListAsync();
 
             return Ok(result);

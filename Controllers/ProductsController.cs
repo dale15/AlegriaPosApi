@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Text;
 
 namespace AlegriaPosApi.Controllers
 {
@@ -235,6 +236,153 @@ namespace AlegriaPosApi.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // Import and Export of products data
+        [HttpGet("export")]
+        public async Task<IActionResult> ExportProducts()
+        {
+            var products = await _context.Products.ToListAsync();
+
+            var csv = new StringBuilder();
+            csv.AppendLine("sku,name,cost price,selling price,category");
+
+            foreach (var p in products)
+            {
+                csv.AppendLine($"{p.SKU},{p.Name},{p.CostPrice},{p.SellingPrice},{p.Category.Name}");
+            }
+
+            return File(
+                Encoding.UTF8.GetBytes(csv.ToString()),
+                "text/csv",
+                "products.csv"
+            );
+        }
+
+        [HttpPost("import")]
+        public async Task<IActionResult> ImportProducts(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("No file uploaded");
+
+            // Disable change tracking for speed
+            _context.ChangeTracker.AutoDetectChangesEnabled = false;
+
+            using var reader = new StreamReader(file.OpenReadStream());
+
+            // Skip header
+            await reader.ReadLineAsync();
+
+            int rowNumber = 1;
+            int success = 0;
+
+            var errors = new List<object>();
+            var toInsert = new List<Product>();
+            var toUpdate = new List<Product>();
+
+            // Load existing products ONCE
+            var existingProducts = await _context.Products
+                .AsNoTracking()
+                .ToDictionaryAsync(p => p.SKU);
+
+            var categories = await _context.Categories
+            .AsNoTracking()
+            .ToDictionaryAsync(
+                c => c.Name.Trim().ToLower(),
+                c => c.Id
+            );
+
+            while (!reader.EndOfStream)
+            {
+                rowNumber++;
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                var cols = line.Split(',');
+
+                if (cols.Length < 5)
+                {
+                    errors.Add(new { row = rowNumber, message = "Invalid column count" });
+                    continue;
+                }
+
+                try
+                {
+                    var sku = cols[0].Trim();
+                    var name = cols[1].Trim();
+                    var categoryName = cols[4].Trim();
+
+                    if (string.IsNullOrEmpty(sku))
+                        throw new Exception("SKU is required");
+
+                    if (!decimal.TryParse(cols[2], out var costPrice))
+                        throw new Exception("Invalid cost price");
+
+                    if (!decimal.TryParse(cols[3], out var sellingPrice))
+                        throw new Exception("Invalid selling price");
+
+                    if (string.IsNullOrEmpty(categoryName))
+                        throw new Exception("Category is required");
+
+                    if (!categories.TryGetValue(categoryName.ToLower(), out var categoryId))
+                    {
+                        var newCategory = new Category { Name = categoryName };
+                        _context.Categories.Add(newCategory);
+                        await _context.SaveChangesAsync();
+
+                        categoryId = newCategory.Id;
+                        categories[categoryName.ToLower()] = categoryId;
+                    }
+
+                    if (existingProducts.TryGetValue(sku, out var existing))
+                    {
+                        existing.Name = name;
+                        existing.CostPrice = costPrice;
+                        existing.SellingPrice = sellingPrice;
+                        existing.CategoryId = categoryId;
+
+                        toUpdate.Add(existing);
+                    }
+                    else
+                    {
+                        toInsert.Add(new Product
+                        {
+                            SKU = sku,
+                            Name = name,
+                            CostPrice = costPrice,
+                            SellingPrice = sellingPrice,
+                            CategoryId = categoryId
+                        });
+                    }
+
+                    success++;
+                }
+                catch (Exception ex)
+                {
+                    errors.Add(new { row = rowNumber, message = ex.Message });
+                }
+            }
+
+            // Bulk save
+            if (toInsert.Any())
+                _context.Products.AddRange(toInsert);
+
+            if (toUpdate.Any())
+                _context.Products.UpdateRange(toUpdate);
+
+            await _context.SaveChangesAsync();
+
+            // Re-enable tracking
+            _context.ChangeTracker.AutoDetectChangesEnabled = true;
+
+            return Ok(new
+            {
+                success,
+                inserted = toInsert.Count,
+                updated = toUpdate.Count,
+                failed = errors.Count,
+                errors
+            });
         }
     }
 }

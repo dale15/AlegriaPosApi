@@ -70,16 +70,40 @@ namespace AlegriaPosApi.Controllers
             }
 
             var tax = dto.Tax ?? 0m;
+            decimal discountAmount = 0m;
+
+            if (dto.DiscountId != null)
+            {
+                var discount = await _context.Discounts
+                .FirstOrDefaultAsync(d => d.Id == dto.DiscountId && d.IsActive);
+
+                if (discount == null)
+                {
+                    return BadRequest("Invalid or inactive discount.");
+                }
+
+                discountAmount = discount.Type == "percent" ? subTotal * (discount.Value / 100) : discount.Value;
+
+                if (discountAmount > subTotal)
+                {
+                    discountAmount = subTotal;
+                }
+
+                invoice.DiscountId = discount.Id;
+            }
 
             invoice.SubTotal = subTotal;
             invoice.Tax = dto.Tax;
-            invoice.Discount = dto.Discount;
-            invoice.TotalAmount = subTotal + tax - dto.Discount;
+            invoice.DiscountAmount = discountAmount;
+            invoice.TotalAmount = subTotal + tax - discountAmount;
+
+            if (invoice.TotalAmount < 0)
+            {
+                invoice.TotalAmount = 0;
+            }
 
             _context.SalesInvoices.Add(invoice);
             await _context.SaveChangesAsync();
-
-
 
             return Ok(new { invoice.Id, invoice.InvoiceNumber, invoice.InvoiceDate });
         }
@@ -95,7 +119,7 @@ namespace AlegriaPosApi.Controllers
                     InvoiceDate = i.InvoiceDate,
                     SubTotal = i.SubTotal,
                     Tax = i.Tax ?? 0m,
-                    Discount = i.Discount,
+                    Discount = i.DiscountAmount,
                     TotalAmount = i.TotalAmount,
                 })
                 .ToListAsync();
@@ -123,7 +147,7 @@ namespace AlegriaPosApi.Controllers
                 InvoiceDate = invoice.InvoiceDate,
                 SubTotal = invoice.SubTotal,
                 Tax = invoice.Tax ?? 0m,
-                Discount = invoice.Discount,
+                Discount = invoice.DiscountAmount,
                 TotalAmount = invoice.TotalAmount,
                 Items = invoice.Sales.Select(s => new SaleDto
                 {

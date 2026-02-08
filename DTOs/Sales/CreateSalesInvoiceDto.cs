@@ -2,6 +2,7 @@
 {
     public class CreateSalesInvoiceDto
     {
+        public int? DiscountId { get; set; }
         public decimal? Tax { get; set; }
         public decimal Discount { get; set; }
 
