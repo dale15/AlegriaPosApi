@@ -242,7 +242,9 @@ namespace AlegriaPosApi.Controllers
         [HttpGet("export")]
         public async Task<IActionResult> ExportProducts()
         {
-            var products = await _context.Products.ToListAsync();
+            var products = await _context.Products
+            .Include(p => p.Category)
+            .ToListAsync();
 
             var csv = new StringBuilder();
             csv.AppendLine("sku,name,cost price,selling price,category");

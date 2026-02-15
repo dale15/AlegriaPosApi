@@ -50,7 +50,7 @@ namespace AlegriaPosApi.Controllers
                 {
                     ProductId = product.Id,
                     Quantity = item.Quantity,
-                    UnitPrice = product.SellingPrice,
+                    UnitPrice = unitPriceWithModifiers,
                     TotalPrice = totalPrice
                 };
 
