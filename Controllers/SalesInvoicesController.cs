@@ -149,7 +149,7 @@ namespace AlegriaPosApi.Controllers
             return Ok(invoices);
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<IActionResult> GetSalesInvoiceById(int id)
         {
             var invoice = await _context.SalesInvoices
