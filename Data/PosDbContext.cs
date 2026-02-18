@@ -30,6 +30,12 @@ namespace AlegriaPosApi.Data
                 .WithMany()
                 .HasForeignKey(i => i.DiscountId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<SalesInvoicePayment>()
+                .HasOne(p => p.SalesInvoice)
+                .WithMany(i => i.Payments)
+                .HasForeignKey(p => p.SalesInvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         public DbSet<Category> Categories => Set<Category>();
@@ -42,5 +48,6 @@ namespace AlegriaPosApi.Data
         public DbSet<ProductMaterial> ProductMaterials => Set<ProductMaterial>();
         public DbSet<Sale> Sale => Set<Sale>();
         public DbSet<Discount> Discounts => Set<Discount>();
+        public DbSet<SalesInvoicePayment> SalesInvoicePayments => Set<SalesInvoicePayment>();
     }
 }

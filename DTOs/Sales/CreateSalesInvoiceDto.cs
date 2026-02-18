@@ -7,5 +7,7 @@
         public decimal Discount { get; set; }
 
         public List<CreateSaleDto> Items { get; set; } = new();
+
+        public List<CreatePaymentDto> Payments { get; set; } = new();
     }
 }

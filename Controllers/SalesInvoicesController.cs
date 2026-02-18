@@ -97,6 +97,29 @@ namespace AlegriaPosApi.Controllers
             invoice.DiscountAmount = discountAmount;
             invoice.TotalAmount = subTotal + tax - discountAmount;
 
+            // 🔥 Validate Payments
+            if (dto.Payments == null || dto.Payments.Count == 0)
+            {
+                return BadRequest("At least one payment is required.");
+            }
+
+            var totalPaid = dto.Payments.Sum(p => p.Amount);
+
+            if (totalPaid < invoice.TotalAmount)
+            {
+                return BadRequest("Total payment is less than invoice total.");
+            }
+
+            // 🔥 Save Payments
+            foreach (var payment in dto.Payments)
+            {
+                invoice.Payments.Add(new SalesInvoicePayment
+                {
+                    PaymentMethod = payment.PaymentMethod,
+                    Amount = payment.Amount
+                });
+            }
+
             if (invoice.TotalAmount < 0)
             {
                 invoice.TotalAmount = 0;
@@ -165,6 +188,68 @@ namespace AlegriaPosApi.Controllers
                 }).ToList()
             });
 
+        }
+
+        [HttpGet("daily-report")]
+        public async Task<IActionResult> GetDailyReport()
+        {
+            var today = DateTime.UtcNow.Date;
+            var tomorrow = today.AddDays(1);
+
+            var invoices = await _context.SalesInvoices
+               .Include(i => i.Payments)
+               .Include(i => i.Sales)
+                   .ThenInclude(ii => ii.Product)
+               .AsNoTracking()
+               .Where(i => i.InvoiceDate >= today && i.InvoiceDate < tomorrow)
+               .ToListAsync();
+
+            var totalSales = invoices.Sum(i => i.SubTotal);
+            var totalTax = invoices.Sum(i => i.Tax ?? 0);
+            var totalDiscount = invoices.Sum(i => i.DiscountAmount);
+            var totalTransactions = invoices.Count;
+
+            var paymentBreakdown = invoices
+                .SelectMany(i => i.Payments.Select(p => new
+                {
+                    p.PaymentMethod,
+                    InvoiceTotal = i.TotalAmount
+                }))
+                .GroupBy(x => x.PaymentMethod)
+                .Select(g => new
+                {
+                    PaymentMethod = g.Key.ToString(),
+                    Total = g.Sum(x => x.InvoiceTotal)
+                })
+                .ToList();
+
+            var topProducts = invoices
+                .SelectMany(i => i.Sales)
+                .GroupBy(ii => new
+                {
+                    ii.ProductId,
+                    ii.Product.Name
+                })
+                .Select(g => new
+                {
+                    ProductId = g.Key.ProductId,
+                    ProductName = g.Key.Name,
+                    TotalQuantity = g.Sum(x => x.Quantity),
+                    TotalSales = g.Sum(x => x.Quantity * x.UnitPrice) // or x.Quantity * x.UnitPrice
+                })
+                .OrderByDescending(x => x.TotalQuantity)
+                .Take(5) // top 5 products
+                .ToList();
+
+            return Ok(new
+            {
+                totalSales,
+                totalTax,
+                totalDiscount,
+                totalTransactions,
+                paymentBreakdown,
+                topProducts
+            });
         }
     }
 }

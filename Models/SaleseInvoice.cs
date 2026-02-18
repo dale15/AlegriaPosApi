@@ -19,6 +19,6 @@ namespace AlegriaPosApi.Models
 
         public ICollection<Sale> Sales { get; set; } = new List<Sale>();
 
-
+        public ICollection<SalesInvoicePayment> Payments { get; set; } = new List<SalesInvoicePayment>();
     }
 }
