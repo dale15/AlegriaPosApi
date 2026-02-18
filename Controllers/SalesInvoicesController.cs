@@ -251,5 +251,11 @@ namespace AlegriaPosApi.Controllers
                 topProducts
             });
         }
+
+        [HttpGet("version-check")]
+        public IActionResult VersionCheck()
+        {
+            return Ok("BUILD 2026-02-18 11:45PM");
+        }
     }
 }
