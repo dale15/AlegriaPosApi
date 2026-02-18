@@ -243,15 +243,39 @@ namespace AlegriaPosApi.Controllers
         public async Task<IActionResult> ExportProducts()
         {
             var products = await _context.Products
-            .Include(p => p.Category)
-            .ToListAsync();
+                .Include(p => p.Category)
+                .Include(p => p.Modifiers)
+                    .ThenInclude(m => m.Options)
+                .ToListAsync();
 
             var csv = new StringBuilder();
-            csv.AppendLine("sku,name,cost price,selling price,category");
+            csv.AppendLine("sku,name,costprice,sellingprice,category,modifiers");
 
             foreach (var p in products)
             {
-                csv.AppendLine($"{p.SKU},{p.Name},{p.CostPrice},{p.SellingPrice},{p.Category.Name}");
+                var modifierGroups = new List<string>();
+
+                foreach (var modifier in p.Modifiers)
+                {
+                    var requiredText = modifier.IsRequired ? "required" : "optional";
+                    var multipleText = modifier.IsMultiple ? "multiple" : "single";
+
+                    var optionParts = modifier.Options
+                        .Select(o => $"{o.Name}|{o.PriceAdjustment}");
+
+                    var optionsString = string.Join("|", optionParts);
+
+                    var modifierString =
+                        $"{modifier.Name}|{requiredText}|{multipleText}:{optionsString}";
+
+                    modifierGroups.Add(modifierString);
+                }
+
+                var modifiersFinal = string.Join(";", modifierGroups);
+
+                csv.AppendLine(
+                    $"{p.SKU},{p.Name},{p.CostPrice},{p.SellingPrice},{p.Category.Name},{modifiersFinal}"
+                );
             }
 
             return File(
@@ -302,7 +326,7 @@ namespace AlegriaPosApi.Controllers
 
                 var cols = line.Split(',');
 
-                if (cols.Length < 5)
+                if (cols.Length < 6)
                 {
                     errors.Add(new { row = rowNumber, message = "Invalid column count" });
                     continue;
@@ -313,6 +337,7 @@ namespace AlegriaPosApi.Controllers
                     var sku = cols[0].Trim();
                     var name = cols[1].Trim();
                     var categoryName = cols[4].Trim();
+                    var modifierData = cols[5].Trim().Trim('"');
 
                     if (string.IsNullOrEmpty(sku))
                         throw new Exception("SKU is required");
@@ -343,18 +368,121 @@ namespace AlegriaPosApi.Controllers
                         existing.SellingPrice = sellingPrice;
                         existing.CategoryId = categoryId;
 
+                        // Remove old modifiers
+                        var oldModifiers = _context.ProductModifiers
+                            .Where(pm => pm.ProductId == existing.Id)
+                            .ToList();
+
+                        _context.ProductModifiers.RemoveRange(oldModifiers);
+
+                        existing.Modifiers.Clear();
+
+                        // Rebuild modifiers
+                        if (!string.IsNullOrWhiteSpace(modifierData))
+                        {
+                            var modifierGroups = modifierData.Split(';');
+
+                            foreach (var group in modifierGroups)
+                            {
+                                var split = group.Split(':');
+                                if (split.Length != 2) continue;
+
+                                var headerParts = split[0].Split('|');
+                                if (headerParts.Length != 3) continue;
+
+                                var modifierName = headerParts[0].Trim();
+                                var isRequired = headerParts[1].Trim().ToLower() == "required";
+                                var isMultiple = headerParts[2].Trim().ToLower() == "multiple";
+
+                                var productModifier = new ProductModifier
+                                {
+                                    ProductId = existing.Id,
+                                    Name = modifierName,
+                                    IsRequired = isRequired,
+                                    IsMultiple = isMultiple
+                                };
+
+                                var optionParts = split[1].Split('|');
+
+                                for (int i = 0; i < optionParts.Length; i += 2)
+                                {
+                                    var optionName = optionParts[i].Trim();
+
+                                    decimal priceAdjustment = 0;
+
+                                    if (i + 1 < optionParts.Length)
+                                        decimal.TryParse(optionParts[i + 1].Trim(), out priceAdjustment);
+
+                                    productModifier.Options.Add(new ProductModifierOption
+                                    {
+                                        Name = optionName,
+                                        PriceAdjustment = priceAdjustment
+                                    });
+                                }
+
+                                existing.Modifiers.Add(productModifier);
+                            }
+                        }
+
                         toUpdate.Add(existing);
                     }
                     else
                     {
-                        toInsert.Add(new Product
+                        var newProduct = new Product
                         {
                             SKU = sku,
                             Name = name,
                             CostPrice = costPrice,
                             SellingPrice = sellingPrice,
                             CategoryId = categoryId
-                        });
+                        };
+
+                        if (!string.IsNullOrWhiteSpace(modifierData))
+                        {
+                            var modifierGroups = modifierData.Split(';');
+
+                            foreach (var group in modifierGroups)
+                            {
+                                var split = group.Split(':');
+                                if (split.Length != 2) continue;
+
+                                var headerParts = split[0].Split('|');
+                                if (headerParts.Length != 3) continue;
+
+                                var modifierName = headerParts[0].Trim();
+                                var isRequired = headerParts[1].Trim().ToLower() == "required";
+                                var isMultiple = headerParts[2].Trim().ToLower() == "multiple";
+
+                                var productModifier = new ProductModifier
+                                {
+                                    Name = modifierName,
+                                    IsRequired = isRequired,
+                                    IsMultiple = isMultiple
+                                };
+
+                                var optionParts = split[1].Split('|');
+
+                                for (int i = 0; i < optionParts.Length; i += 2)
+                                {
+                                    var optionName = optionParts[i].Trim();
+
+                                    decimal priceAdjustment = 0;
+
+                                    if (i + 1 < optionParts.Length)
+                                        decimal.TryParse(optionParts[i + 1].Trim(), out priceAdjustment);
+
+                                    productModifier.Options.Add(new ProductModifierOption
+                                    {
+                                        Name = optionName,
+                                        PriceAdjustment = priceAdjustment
+                                    });
+                                }
+
+                                newProduct.Modifiers.Add(productModifier);
+                            }
+                        }
+
+                        toInsert.Add(newProduct);
                     }
 
                     success++;
