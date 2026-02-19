@@ -12,5 +12,13 @@
         public decimal TotalAmount { get; set; }
 
         public List<SaleDto> Items { get; set; } = new();
+
+        public List<SalesInvoicePaymentDto>? Payments { get; set; } // 👈 ADD
+    }
+
+    public class SalesInvoicePaymentDto
+    {
+        public string PaymentType { get; set; }
+        public decimal Amount { get; set; }
     }
 }

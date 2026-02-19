@@ -144,9 +144,16 @@ namespace AlegriaPosApi.Controllers
                     Tax = i.Tax ?? 0m,
                     Discount = i.DiscountAmount,
                     TotalAmount = i.TotalAmount,
+
+                    Payments = i.Payments.Select(p => new SalesInvoicePaymentDto
+                    {
+                        PaymentType = p.PaymentMethod.ToString(), // 🔥 IMPORTANT
+                        Amount = p.Amount
+                    }).ToList()
                 })
                 .ToListAsync();
-            return Ok(invoices);
+
+                return Ok(invoices);
         }
 
         [HttpGet("{id:int}")]
@@ -157,7 +164,9 @@ namespace AlegriaPosApi.Controllers
                     .ThenInclude(s => s.Product)
                 .Include(i => i.Sales)
                     .ThenInclude(s => s.Modifiers)
+                .Include(i => i.Payments) // 👈 ADD THIS
                 .FirstOrDefaultAsync(i => i.Id == id);
+
             if (invoice == null)
             {
                 return NotFound();
@@ -172,6 +181,13 @@ namespace AlegriaPosApi.Controllers
                 Tax = invoice.Tax ?? 0m,
                 Discount = invoice.DiscountAmount,
                 TotalAmount = invoice.TotalAmount,
+
+                Payments = invoice.Payments.Select(p => new SalesInvoicePaymentDto
+                {
+                    PaymentType = p.PaymentMethod.ToString(),
+                    Amount = p.Amount
+                }).ToList(),
+
                 Items = invoice.Sales.Select(s => new SaleDto
                 {
                     ProductId = s.ProductId,
